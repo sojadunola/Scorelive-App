@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ScorePulse - Live Sports Scores & Match Centre</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            dark: {
+              900: '#070b12',
+              800: '#0f172a',
+              700: '#1e293b',
+              600: '#334155'
+            },
+            accent: {
+              green: '#10b981',
+              red: '#ef4444',
+              blue: '#3b82f6'
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-[#090d16] text-gray-100 antialiased selection:bg-blue-600 selection:text-white">
+
+  <!-- TOP NAVIGATION BAR -->
+  <header class="sticky top-0 z-40 bg-[#0f172a]/90 backdrop-blur-md border-b border-gray-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      
+      <!-- Logo & Branding -->
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-emerald-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
+          <i class="ph-bold ph-lightning text-white text-xl"></i>
+        </div>
+        <div>
+          <span class="text-xl font-extrabold tracking-tight bg-gradient-to-r from-white via-gray-200 to-blue-400 bg-clip-text text-transparent">
+            ScorePulse
+          </span>
+          <span class="hidden sm:inline-block ml-2 px-2 py-0.5 text-[10px] font-bold uppercase rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            Live HQ
+          </span>
+        </div>
+      </div>
+
+      <!-- Search bar -->
+      <div class="hidden md:flex items-center relative flex-1 max-w-xs mx-8">
+        <i class="ph ph-magnifying-glass absolute left-3 text-gray-400"></i>
+        <input 
+          type="text" 
+          id="teamSearchInput" 
+          placeholder="Search team or league..." 
+          class="w-full pl-9 pr-4 py-1.5 text-sm rounded-lg bg-gray-900/80 border border-gray-700/80 text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+        >
+      </div>
+
+      <!-- Controls: Refresh ticker, Audio, Simulation Mode -->
+      <div class="flex items-center space-x-3">
+        <!-- Live Sim / Real Toggle -->
+        <div class="flex items-center bg-gray-900 rounded-lg p-1 border border-gray-800 text-xs font-semibold">
+          <button id="modeAutoBtn" class="px-2.5 py-1 rounded-md transition-all bg-blue-600 text-white shadow-sm" onclick="setMode('auto')">
+            <i class="ph-bold ph-globe mr-1"></i>Live ESPN
+          </button>
+          <button id="modeSimBtn" class="px-2.5 py-1 rounded-md transition-all text-gray-400 hover:text-white" onclick="setMode('sim')">
+            <i class="ph-bold ph-lightning mr-1"></i>Sim Engine
+          </button>
+        </div>
+
+        <!-- Audio Alert Toggle -->
+        <button id="audioToggleBtn" onclick="toggleAudio()" title="Toggle Goal Audio Sound" class="p-2 rounded-lg bg-gray-900 border border-gray-800 text-gray-400 hover:text-white transition-colors">
+          <i id="audioIcon" class="ph-bold ph-speaker-simple-high"></i>
+        </button>
+
+        <!-- Refresh Countdown & Manual Trigger -->
+        <button id="refreshBtn" onclick="fetchScores(true)" title="Manual Refresh" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-blue-600/10 text-blue-400 border border-blue-500/20 hover:bg-blue-600/20 transition-all text-xs font-semibold">
+          <i id="refreshSpinner" class="ph-bold ph-arrows-clockwise"></i>
+          <span id="countdownText">15s</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- LEAGUE FILTER BAR -->
+    <div class="border-t border-gray-800/60 bg-[#0b1120]/70 overflow-x-auto scrollbar-none">
+      <div class="max-w-7xl mx-auto px-4 flex items-center space-x-2 py-2.5 text-xs font-medium" id="leaguePillsContainer">
+        <!-- Populated via JS -->
+      </div>
+    </div>
+  </header>
+
+  <!-- SUBHEADER: Status Filter Tabs & Stats Bar -->
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-800/80">
+      
+      <!-- Filter Tabs: All, Live, Upcoming, Finished, Favorites -->
+      <div class="flex items-center space-x-2 bg-gray-900/90 p-1 rounded-xl border border-gray-800/80 text-xs font-semibold">
+        <button onclick="setTab('all')" id="tab-all" class="px-3 py-1.5 rounded-lg transition-all bg-blue-600 text-white">
+          All Matches (<span id="count-all">0</span>)
+        </button>
+        <button onclick="setTab('live')" id="tab-live" class="px-3 py-1.5 rounded-lg transition-all text-gray-400 hover:text-white flex items-center space-x-1.5">
+          <span class="w-2 h-2 rounded-full bg-red-500 live-pulse"></span>
+          <span>Live (<span id="count-live">0</span>)</span>
+        </button>
+        <button onclick="setTab('pre')" id="tab-pre" class="px-3 py-1.5 rounded-lg transition-all text-gray-400 hover:text-white">
+          Upcoming (<span id="count-pre">0</span>)
+        </button>
+        <button onclick="setTab('post')" id="tab-post" class="px-3 py-1.5 rounded-lg transition-all text-gray-400 hover:text-white">
+          Finished (<span id="count-post">0</span>)
+        </button>
+        <button onclick="setTab('favorites')" id="tab-favorites" class="px-3 py-1.5 rounded-lg transition-all text-gray-400 hover:text-white flex items-center space-x-1">
+          <i class="ph-fill ph-star text-amber-400 text-sm"></i>
+          <span>Pinned (<span id="count-fav">0</span>)</span>
+        </button>
+      </div>
+
+      <!-- Quick Banner / League Title & Status -->
+      <div class="flex items-center space-x-3 text-xs text-gray-400">
+        <span id="currentLeagueDisplay" class="font-semibold text-gray-200">Premier League</span>
+        <span>•</span>
+        <span id="dataSourceBadge" class="px-2 py-0.5 rounded bg-gray-800 text-gray-300 font-mono text-[11px]">Provider: ESPN</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN BODY: Grid Layout (Matches on Left 8 cols, Standings on Right 4 cols) -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    
+    <!-- Info banner when demo simulation is auto-engaged -->
+    <div id="simNotice" class="hidden mb-6 p-4 rounded-xl bg-gradient-to-r from-blue-900/30 to-indigo-900/30 border border-blue-500/30 flex items-start space-x-3">
+      <i class="ph-bold ph-info text-blue-400 text-xl mt-0.5"></i>
+      <div class="text-xs">
+        <p class="font-semibold text-blue-200">Interactive Simulation Engine Active</p>
+        <p class="text-gray-400 mt-0.5">No live fixtures are scheduled at this exact moment in real-world broadcast, so live ticking simulated fixtures with real-time goal events are running for your preview.</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      
+      <!-- MATCHES COLUMN (8 COLS) -->
+      <section class="lg:col-span-8">
+        <!-- Matches Container -->
+        <div id="matchesContainer" class="space-y-4">
+          <!-- Skeleton Loading State -->
+          <div class="p-6 rounded-2xl bg-gray-900/40 border border-gray-800 animate-pulse space-y-4">
+            <div class="h-4 bg-gray-800 rounded w-1/4"></div>
+            <div class="h-16 bg-gray-800/50 rounded-xl"></div>
+            <div class="h-16 bg-gray-800/50 rounded-xl"></div>
+          </div>
+        </div>
+
+        <!-- Empty State Container -->
+        <div id="emptyState" class="hidden text-center py-16 px-4 rounded-2xl bg-gray-900/30 border border-gray-800/60">
+          <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-800/60 flex items-center justify-center text-gray-500 text-2xl">
+            <i class="ph ph-soccer-ball"></i>
+          </div>
+          <h3 class="text-base font-semibold text-gray-300">No Matches Found</h3>
+          <p class="text-xs text-gray-500 mt-1 max-w-sm mx-auto">There are no fixtures matching your current filter criteria or team search.</p>
+          <button onclick="setTab('all'); document.getElementById('teamSearchInput').value='';" class="mt-4 px-4 py-2 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-500 transition-colors">
+            Reset Filters
+          </button>
+        </div>
+      </section>
+
+      <!-- STANDINGS / LEAGUE TABLE (4 COLS) -->
+      <aside class="lg:col-span-4">
+        <div class="sticky top-24 bg-[#111827]/70 backdrop-blur-md rounded-2xl border border-gray-800 p-5 shadow-xl">
+          
+          <div class="flex items-center justify-between pb-4 border-b border-gray-800">
+            <div class="flex items-center space-x-2">
+              <i class="ph-bold ph-trophy text-amber-400 text-lg"></i>
+              <h2 class="text-sm font-bold text-gray-200 uppercase tracking-wider">Standings</h2>
+            </div>
+            <span id="standingsLeagueTag" class="text-[11px] font-semibold text-gray-400 bg-gray-800 px-2 py-0.5 rounded">
+              EPL
+            </span>
+          </div>
+
+          <!-- Table Header -->
+          <div class="grid grid-cols-12 text-[10px] uppercase font-bold text-gray-400 py-2.5 px-2">
+            <span class="col-span-1">#</span>
+            <span class="col-span-6">Club</span>
+            <span class="col-span-1 text-center">P</span>
+            <span class="col-span-1 text-center">W</span>
+            <span class="col-span-1 text-center">D</span>
+            <span class="col-span-1 text-center">L</span>
+            <span class="col-span-1 text-right font-bold text-blue-400">Pts</span>
+          </div>
+
+          <!-- Table Rows Container -->
+          <div id="standingsRowsContainer" class="space-y-1 text-xs max-h-[500px] overflow-y-auto pr-1">
+            <!-- Populated via JS -->
+          </div>
+
+          <!-- Quick Stat Footer -->
+          <div class="mt-4 pt-3 border-t border-gray-800/80 text-[11px] text-gray-400 flex items-center justify-between">
+            <span class="flex items-center space-x-1.5">
+              <span class="w-2 h-2 rounded-full bg-blue-500 inline-block"></span>
+              <span>Champions League</span>
+            </span>
+            <span class="flex items-center space-x-1.5">
+              <span class="w-2 h-2 rounded-full bg-red-500 inline-block"></span>
+              <span>Relegation</span>
+            </span>
+          </div>
+        </div>
+      </aside>
+
+    </div>
+  </main>
+
+  <!-- MATCH DETAIL MODAL -->
+  <div id="matchDetailModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="relative w-full max-w-2xl bg-[#0f172a] rounded-3xl border border-gray-700/80 shadow-2xl overflow-hidden modal-enter">
+      
+      <!-- Modal Header with Close Button -->
+      <div class="px-6 py-4 bg-gray-900/80 border-b border-gray-800 flex items-center justify-between">
+        <div class="flex items-center space-x-2 text-xs font-semibold text-gray-400">
+          <span id="modalLeagueName">Premier League</span>
+          <span>•</span>
+          <span id="modalVenue" class="text-gray-400">Stadium</span>
+        </div>
+        <button onclick="closeModal()" class="w-8 h-8 rounded-full bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white flex items-center justify-center transition-colors">
+          <i class="ph-bold ph-x text-base"></i>
+        </button>
+      </div>
+
+      <!-- Scoreboard Center Header -->
+      <div class="px-6 py-6 bg-gradient-to-b from-[#131d33] to-[#0f172a] text-center border-b border-gray-800">
+        
+        <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-bold mb-4" id="modalStatusBadge">
+          <span class="w-2 h-2 rounded-full bg-red-500 live-pulse"></span>
+          <span id="modalClockText">68'</span>
+        </div>
+
+        <div class="grid grid-cols-11 items-center">
+          <!-- Home Club -->
+          <div class="col-span-4 flex flex-col items-center">
+            <img id="modalHomeLogo" src="" alt="Home Logo" class="w-16 h-16 object-contain mb-2 drop-shadow-md">
+            <h3 id="modalHomeName" class="text-sm sm:text-base font-bold text-white text-center">Arsenal</h3>
+          </div>
+
+          <!-- Digital Score -->
+          <div class="col-span-3 flex flex-col items-center justify-center">
+            <div class="text-4xl sm:text-5xl font-black text-white score-badge px-4 py-2 rounded-xl border border-gray-700">
+              <span id="modalScoreHome">2</span> - <span id="modalScoreAway">1</span>
+            </div>
+            <span id="modalBroadcastText" class="text-[11px] text-gray-400 mt-2 font-mono">Sky Sports</span>
+          </div>
+
+          <!-- Away Club -->
+          <div class="col-span-4 flex flex-col items-center">
+            <img id="modalAwayLogo" src="" alt="Away Logo" class="w-16 h-16 object-contain mb-2 drop-shadow-md">
+            <h3 id="modalAwayName" class="text-sm sm:text-base font-bold text-white text-center">Chelsea</h3>
+          </div>
+        </div>
+
+        <!-- Headline / Note -->
+        <p id="modalHeadline" class="text-xs text-blue-300/90 mt-4 italic max-w-md mx-auto"></p>
+      </div>
+
+      <!-- Modal Tabs: Timeline Events & In-Game Stats -->
+      <div class="border-b border-gray-800 bg-gray-900/40 flex text-xs font-bold">
+        <button onclick="setModalTab('events')" id="modalTabEventsBtn" class="flex-1 py-3 text-center border-b-2 border-blue-500 text-blue-400 transition-colors">
+          <i class="ph-bold ph-clock-countdown mr-1"></i> Match Events & Goals
+        </button>
+        <button onclick="setModalTab('stats')" id="modalTabStatsBtn" class="flex-1 py-3 text-center border-b-2 border-transparent text-gray-400 hover:text-white transition-colors">
+          <i class="ph-bold ph-chart-bar mr-1"></i> Match Statistics
+        </button>
+      </div>
+
+      <!-- Modal Tab Contents -->
+      <div class="p-6 max-h-80 overflow-y-auto">
+        <!-- Events Section -->
+        <div id="modalEventsContainer" class="space-y-3">
+          <!-- Populated via JS -->
+        </div>
+
+        <!-- Stats Section -->
+        <div id="modalStatsContainer" class="hidden space-y-4">
+          <!-- Populated via JS -->
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-6 py-3 bg-gray-900/80 border-t border-gray-800 flex items-center justify-between text-xs text-gray-400">
+        <span>Updates in real-time</span>
+        <button onclick="closeModal()" class="px-4 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-white font-semibold transition-colors">
+          Close
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Audio Goal Chime element -->
+  <audio id="goalAudio" preload="auto">
+    <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
+  </audio>
+
+  <!-- Main JavaScript application -->
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
